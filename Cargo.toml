@@ -1,0 +1,15 @@
+[package]
+name = "artos"
+version = "0.0.0"
+edition = "2024"
+
+[[bin]]
+name = "artos"
+test = false
+bench = false
+
+[dependencies]
+bootloader = "0.9"
+
+[package.metadata.bootimage]
+run-args = ["-serial", "mon:stdio", "-parallel", "none", "-display", "gtk"]
