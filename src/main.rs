@@ -2,37 +2,36 @@
 #![no_main]
 #![allow(clippy::identity_op)]
 
-mod com1;
+mod cpu;
+mod drivers;
+mod io;
 
-use core::hint;
+use core::fmt::Write;
 
-use crate::com1::polling::Serial;
+use crate::drivers::com1;
+use crate::drivers::vga;
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-const VGA: usize = 0xb8000;
-
-static HELLO_VGA: &str = "Hello VGA!";
-static HELLO_COM1: &str = "Hello COM1!\n";
-
 #[unsafe(no_mangle)]
 extern "C" fn _start() -> ! {
-    let serial = Serial::new();
-    serial.write_str(HELLO_COM1);
+    let mut serial = com1::Writer::new();
+    serial.write_str("Hello COM1!\n").unwrap();
 
-    let vga_buffer = VGA as *mut u8;
+    let mut vga_writer = vga::Writer {
+        position: 0,
+        color_code: vga::ColorCode::new(vga::Color::Yellow, vga::Color::Black),
+        buffer: vga::buffer(),
+    };
 
-    for (i, byte) in HELLO_VGA.bytes().enumerate() {
-        unsafe {
-            *vga_buffer.add(i * 2) = byte;
-            *vga_buffer.add(i * 2 + 1) = 0xb;
-        }
-    }
+    vga_writer
+        .write_str("Hello VGA!\n\nYou're so pretty today!")
+        .unwrap();
 
     loop {
-        hint::spin_loop();
+        cpu::halt();
     }
 }
