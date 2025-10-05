@@ -4,54 +4,65 @@ use core::ops::DerefMut;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering;
 
+#[derive(Default, Debug)]
 pub struct Mutex<T: ?Sized> {
-    locked: AtomicBool,
-    value: UnsafeCell<T>,
+    is_locked: AtomicBool,
+    data: UnsafeCell<T>,
 }
 
 impl<T> Mutex<T> {
-    pub fn new(t: T) -> Self {
+    pub const fn new(t: T) -> Self {
         Self {
-            locked: AtomicBool::new(false),
-            value: UnsafeCell::new(t),
+            is_locked: AtomicBool::new(false),
+            data: UnsafeCell::new(t),
         }
     }
 }
 
 impl<T: ?Sized> Mutex<T> {
-    pub fn lock(&self) -> Option<MutexGuard<'_, T>> {
-        if !self.locked.swap(true, Ordering::AcqRel) {
-            Some(MutexGuard { mutex: self })
-        } else {
-            None
+    /// Non-blocking attempt to acquire the lock.
+    /// Returns `Some(MutexGuard)` on success, `None` on failure.
+    #[inline]
+    pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
+        match self
+            .is_locked
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        {
+            Ok(_) => Some(MutexGuard { mutex: self }),
+            Err(_) => None,
         }
     }
 }
 
+unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
 unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
 
 pub struct MutexGuard<'a, T: ?Sized> {
     mutex: &'a Mutex<T>,
 }
 
+unsafe impl<T: ?Sized + Sync> Send for MutexGuard<'_, T> {}
 unsafe impl<T: ?Sized + Sync> Sync for MutexGuard<'_, T> {}
 
 impl<T: ?Sized> Deref for MutexGuard<'_, T> {
     type Target = T;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
-        unsafe { &*self.mutex.value.get() }
+        unsafe { &*self.mutex.data.get() }
     }
 }
 
 impl<T: ?Sized> DerefMut for MutexGuard<'_, T> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.mutex.value.get() }
+        unsafe { &mut *self.mutex.data.get() }
     }
 }
 
 impl<T: ?Sized> Drop for MutexGuard<'_, T> {
+    #[inline]
     fn drop(&mut self) {
-        self.mutex.locked.store(false, Ordering::Release);
+        self.mutex.is_locked.store(false, Ordering::Release);
     }
 }
