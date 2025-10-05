@@ -1,4 +1,5 @@
 use core::fmt::Write;
+use core::ptr;
 use core::ptr::NonNull;
 
 use crate::sync::MutexPtr;
@@ -69,9 +70,11 @@ impl Writer<'_> {
             b'\n' => self.new_line(),
             byte => {
                 let color_code = self.color_code;
-                self.buffer.chars[self.position] = ScreenChar {
-                    ascii_character: byte,
-                    color_code,
+                unsafe {
+                    ptr::write_volatile(&raw mut self.buffer.chars[self.position], ScreenChar {
+                        ascii_character: byte,
+                        color_code,
+                    })
                 };
                 self.position += 1;
             }
