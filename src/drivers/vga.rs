@@ -1,4 +1,7 @@
 use core::fmt::Write;
+use core::ptr::NonNull;
+
+use crate::sync::MutexPtr;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,12 +46,8 @@ pub const BUFFER_ADDR: usize = 0xb8000;
 pub const BUFFER_HEIGHT: usize = 25;
 pub const BUFFER_WIDTH: usize = 80;
 
-pub static mut BUFFER: *mut Buffer = BUFFER_ADDR as *mut Buffer;
-
-// TODO: make it sound with some guard object
-pub fn buffer() -> &'static mut Buffer {
-    unsafe { &mut *BUFFER }
-}
+pub static BUFFER: MutexPtr<Buffer> =
+    unsafe { MutexPtr::new(NonNull::new_unchecked(BUFFER_ADDR as *mut Buffer)) };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(transparent)]

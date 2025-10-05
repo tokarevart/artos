@@ -23,10 +23,11 @@ extern "C" fn _start() -> ! {
     let mut serial = com1::Writer::new();
     serial.write_str("Hello COM1!\n").unwrap();
 
+    let mut buffer = vga::BUFFER.try_lock().unwrap();
     let mut vga_writer = vga::Writer {
         position: 0,
         color_code: vga::ColorCode::new(vga::Color::Yellow, vga::Color::Black),
-        buffer: vga::buffer(),
+        buffer: &mut buffer,
     };
 
     vga_writer
