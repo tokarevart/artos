@@ -2,7 +2,7 @@ use core::fmt::Write;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering;
 
-use crate::cpu;
+use crate::arch;
 use crate::io::inb;
 use crate::io::outb;
 
@@ -44,7 +44,7 @@ impl Writer {
 
     pub fn write_byte(&mut self, byte: u8) {
         while !is_transmit_empty() {
-            cpu::halt();
+            arch::halt();
         }
 
         unsafe { outb(COM1 + 0, byte) };

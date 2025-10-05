@@ -1,10 +1,12 @@
 #![no_std]
 #![no_main]
+#![feature(negative_impls)]
 #![allow(clippy::identity_op)]
 
-mod cpu;
+mod arch;
 mod drivers;
 mod io;
+mod sync;
 
 use core::fmt::Write;
 
@@ -32,6 +34,6 @@ extern "C" fn _start() -> ! {
         .unwrap();
 
     loop {
-        cpu::halt();
+        arch::halt();
     }
 }
