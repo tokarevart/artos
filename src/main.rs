@@ -23,16 +23,9 @@ extern "C" fn _start() -> ! {
     let mut serial = com1::Writer::new();
     serial.write_str("Hello COM1!\n").unwrap();
 
-    let mut buffer = vga::BUFFER.try_lock().unwrap();
-    let mut vga_writer = vga::Writer {
-        position: 0,
-        color_code: vga::ColorCode::new(vga::Color::Yellow, vga::Color::Black),
-        buffer: &mut buffer,
-    };
-
-    vga_writer
-        .write_str("Hello VGA!\n\nYou're so pretty today!")
-        .unwrap();
+    assert!(vga_println!("Hello VGA!"));
+    assert!(vga_println!());
+    assert!(vga_println!("Btw, {}", 42));
 
     loop {
         arch::halt();
