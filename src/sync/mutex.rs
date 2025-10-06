@@ -45,7 +45,7 @@ pub struct MutexGuard<'a, T: ?Sized> {
     mutex: &'a Mutex<T>,
 }
 
-unsafe impl<T: ?Sized + Sync> Send for MutexGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send> Send for MutexGuard<'_, T> {}
 unsafe impl<T: ?Sized + Sync> Sync for MutexGuard<'_, T> {}
 
 impl<T: ?Sized> Deref for MutexGuard<'_, T> {
@@ -113,7 +113,7 @@ pub struct MutexPtrGuard<'a, T: ?Sized> {
     pub ptr: *mut T,
 }
 
-unsafe impl<T: ?Sized + Sync> Send for MutexPtrGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send> Send for MutexPtrGuard<'_, T> {}
 unsafe impl<T: ?Sized + Sync> Sync for MutexPtrGuard<'_, T> {}
 
 impl<T: ?Sized> Drop for MutexPtrGuard<'_, T> {
