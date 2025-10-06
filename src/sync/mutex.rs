@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use core::cell::UnsafeCell;
 use core::ops::Deref;
 use core::ops::DerefMut;
@@ -70,20 +72,35 @@ impl<T: ?Sized> Drop for MutexGuard<'_, T> {
 }
 
 #[derive(Debug)]
-pub struct MutexPtr<T: ?Sized>(Mutex<NonNull<T>>);
+pub struct MutexPtr<T: ?Sized> {
+    is_locked: AtomicBool,
+    ptr: *mut T,
+}
 
 impl<T> MutexPtr<T> {
-    pub const unsafe fn new(t: NonNull<T>) -> Self {
-        Self(Mutex::new(t))
+    pub const unsafe fn new(ptr: *mut T) -> Self {
+        Self {
+            is_locked: AtomicBool::new(false),
+            ptr,
+        }
     }
 }
 
 impl<T: ?Sized> MutexPtr<T> {
     /// Non-blocking attempt to acquire the lock.
-    /// Returns `Some(MutexGuard)` on success, `None` on failure.
+    /// Returns `Some(MutexGuardPtr)` on success, `None` on failure.
     #[inline]
     pub fn try_lock(&self) -> Option<MutexPtrGuard<'_, T>> {
-        self.0.try_lock().map(MutexPtrGuard)
+        match self
+            .is_locked
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        {
+            Ok(_) => Some(MutexPtrGuard {
+                is_locked: &self.is_locked,
+                ptr: self.ptr,
+            }),
+            Err(_) => None,
+        }
     }
 }
 
@@ -91,23 +108,17 @@ unsafe impl<T: ?Sized + Send> Send for MutexPtr<T> {}
 unsafe impl<T: ?Sized + Send> Sync for MutexPtr<T> {}
 
 #[derive(Debug)]
-pub struct MutexPtrGuard<'a, T: ?Sized>(MutexGuard<'a, NonNull<T>>);
+pub struct MutexPtrGuard<'a, T: ?Sized> {
+    is_locked: &'a AtomicBool,
+    pub ptr: *mut T,
+}
 
 unsafe impl<T: ?Sized + Sync> Send for MutexPtrGuard<'_, T> {}
 unsafe impl<T: ?Sized + Sync> Sync for MutexPtrGuard<'_, T> {}
 
-impl<T: ?Sized> Deref for MutexPtrGuard<'_, T> {
-    type Target = T;
-
+impl<T: ?Sized> Drop for MutexPtrGuard<'_, T> {
     #[inline]
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.0.deref().as_ptr() }
-    }
-}
-
-impl<T: ?Sized> DerefMut for MutexPtrGuard<'_, T> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.0.deref().as_ptr() }
+    fn drop(&mut self) {
+        self.is_locked.store(false, Ordering::Release);
     }
 }

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use core::fmt::Write;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering;
@@ -52,6 +54,7 @@ impl Writer {
 }
 
 impl Default for Writer {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }

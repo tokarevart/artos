@@ -1,13 +1,14 @@
+#![allow(dead_code)]
+
 use core::fmt::Write;
-use core::ptr;
-use core::ptr::NonNull;
 
 use crate::sync::MutexPtr;
+use crate::sync::MutexPtrGuard;
 
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(PartialEq, Eq, Default, Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum Color {
+    #[default]
     Black = 0,
     Blue = 1,
     Green = 2,
@@ -26,17 +27,18 @@ pub enum Color {
     White = 15,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Default, Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct ColorCode(pub u8);
 
 impl ColorCode {
+    #[inline]
     pub fn new(foreground: Color, background: Color) -> ColorCode {
         ColorCode((background as u8) << 4 | foreground as u8)
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(PartialEq, Eq, Default, Clone, Copy, Debug)]
 #[repr(C)]
 pub struct ScreenChar {
     pub ascii_character: u8,
@@ -47,22 +49,30 @@ pub const BUFFER_ADDR: usize = 0xb8000;
 pub const BUFFER_HEIGHT: usize = 25;
 pub const BUFFER_WIDTH: usize = 80;
 
-pub static BUFFER: MutexPtr<Buffer> =
-    unsafe { MutexPtr::new(NonNull::new_unchecked(BUFFER_ADDR as *mut Buffer)) };
+pub static BUFFER: MutexPtr<Buffer> = unsafe { MutexPtr::new(BUFFER_ADDR as *mut Buffer) };
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct Buffer {
     pub chars: [ScreenChar; BUFFER_WIDTH * BUFFER_HEIGHT],
 }
 
-pub struct Writer<'a> {
-    pub position: usize,
-    pub color_code: ColorCode,
-    pub buffer: &'a mut Buffer,
+impl Default for Buffer {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            chars: [Default::default(); BUFFER_WIDTH * BUFFER_HEIGHT],
+        }
+    }
 }
 
-impl Writer<'_> {
+pub struct Writer<'a: 'b, 'b> {
+    pub position: usize,
+    pub color_code: ColorCode,
+    pub buffer: &'b mut MutexPtrGuard<'a, Buffer>,
+}
+
+impl Writer<'_, '_> {
     pub fn write_byte(&mut self, byte: u8) {
         assert!(self.position < BUFFER_WIDTH * BUFFER_HEIGHT);
 
@@ -71,10 +81,13 @@ impl Writer<'_> {
             byte => {
                 let color_code = self.color_code;
                 unsafe {
-                    ptr::write_volatile(&raw mut self.buffer.chars[self.position], ScreenChar {
-                        ascii_character: byte,
-                        color_code,
-                    })
+                    core::ptr::write_volatile(
+                        &raw mut (*self.buffer.ptr).chars[self.position],
+                        ScreenChar {
+                            ascii_character: byte,
+                            color_code,
+                        },
+                    )
                 };
                 self.position += 1;
             }
@@ -86,7 +99,7 @@ impl Writer<'_> {
     }
 }
 
-impl Write for Writer<'_> {
+impl Write for Writer<'_, '_> {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for byte in s.bytes() {
             match byte {
