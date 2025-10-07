@@ -7,6 +7,64 @@ use core::ptr::NonNull;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering;
 
+#[derive(Debug)]
+pub struct LazyMutex<T, F: Fn()> {
+    mutex: Mutex<T>,
+    on_first_lock: F,
+}
+
+impl<T, F: Fn()> LazyMutex<T, F> {
+    pub const fn new(t: T, f: F) -> Self {
+        Self {
+            mutex: Mutex::new(t),
+            on_first_lock: f,
+        }
+    }
+
+    /// Non-blocking attempt to acquire the lock.
+    /// Returns `Some(MutexGuard)` on success, `None` on failure.
+    #[inline]
+    pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
+        static INITED: AtomicBool = AtomicBool::new(false);
+
+        self.mutex.try_lock().map(|x| {
+            if INITED
+                .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+                .is_ok()
+            {
+                (self.on_first_lock)();
+            }
+
+            x
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct MutexOnLock<T, F: Fn(&T) -> bool> {
+    mutex: Mutex<T>,
+    on_lock: F,
+}
+
+impl<T, F: Fn(&T) -> bool> MutexOnLock<T, F> {
+    pub const fn new(t: T, on_lock: F) -> Self {
+        Self {
+            mutex: Mutex::new(t),
+            on_lock,
+        }
+    }
+
+    /// Non-blocking attempt to acquire the lock.
+    /// Returns `Some(MutexGuard)` on success, `None` on failure or if `on_lock`
+    /// function returns `false`.
+    #[inline]
+    pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
+        self.mutex
+            .try_lock()
+            .and_then(|x| (self.on_lock)(&x).then_some(x))
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct Mutex<T: ?Sized> {
     is_locked: AtomicBool,

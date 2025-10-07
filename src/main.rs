@@ -8,8 +8,6 @@ mod drivers;
 mod io;
 mod sync;
 
-use core::fmt::Write;
-
 use crate::drivers::com1;
 use crate::drivers::vga;
 
@@ -20,8 +18,7 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 
 #[unsafe(no_mangle)]
 extern "C" fn _start() -> ! {
-    let mut serial = com1::Writer::new();
-    serial.write_str("Hello COM1!\n").unwrap();
+    assert!(com1_println!("Hello COM1!"));
 
     assert!(vga_println!("Hello VGA!"));
     assert!(vga_println!());
