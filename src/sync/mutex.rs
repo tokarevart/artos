@@ -27,15 +27,13 @@ impl<T, F: Fn()> LazyMutex<T, F> {
     pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
         static INITED: AtomicBool = AtomicBool::new(false);
 
-        self.mutex.try_lock().map(|x| {
+        self.mutex.try_lock().inspect(|_| {
             if INITED
                 .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
                 .is_ok()
             {
                 (self.on_first_lock)();
             }
-
-            x
         })
     }
 }
