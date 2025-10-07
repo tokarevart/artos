@@ -5,11 +5,22 @@ edition = "2024"
 
 [[bin]]
 name = "artos"
-test = false
+test = true
 bench = false
 
 [dependencies]
 bootloader = "0.9"
 
 [package.metadata.bootimage]
-run-args = ["-serial", "mon:stdio", "-parallel", "none", "-display", "gtk"]
+run-args = ["-serial", "mon:stdio", "-parallel", "none"]
+test-args = [
+    "-display",
+    "none",
+    "-serial",
+    "mon:stdio",
+    "-parallel",
+    "none",
+    "-device",
+    "isa-debug-exit,iobase=0xf4,iosize=0x04",
+]
+test-success-exit-code = 33
