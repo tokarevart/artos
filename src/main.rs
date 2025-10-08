@@ -36,30 +36,33 @@ mod drivers;
 mod io;
 mod sync;
 
-use crate::drivers::uart_16550;
 use crate::drivers::vga;
 use crate::io::outl;
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    _ = com1_println!("{info}");
+    _ = com1_try_println!("{info}");
     loop {}
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn _start() -> ! {
+    #[cfg(test)]
+    test_main();
+    #[cfg(not(test))]
+    main();
+
+    loop {
+        arch::halt();
+    }
+}
+
+fn main() {
     com1_println!("Hello COM1!");
 
     vga_println!("Hello VGA!");
     vga_println!();
     vga_println!("Btw, {}", 42);
-
-    #[cfg(test)]
-    test_main();
-
-    loop {
-        arch::halt();
-    }
 }
 
 #[test_case]

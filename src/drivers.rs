@@ -1,4 +1,4 @@
 #![allow(dead_code)]
 
-pub mod com1;
+pub mod uart_16550;
 pub mod vga;

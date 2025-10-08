@@ -128,10 +128,31 @@ macro_rules! vga_println {
 }
 
 #[macro_export]
+macro_rules! vga_try_println {
+    () => {
+        $crate::vga_try_print!("\n")
+    };
+    ($($arg:tt)*) => {
+        $crate::vga_try_print!("{}\n", ::core::format_args!($($arg)*))
+    };
+}
+
+#[macro_export]
 macro_rules! vga_print {
+    ($($arg:tt)*) => {
+        $crate::vga::print(::core::format_args!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! vga_try_print {
     ($($arg:tt)*) => {
         $crate::vga::try_print(::core::format_args!($($arg)*))
     };
+}
+
+pub fn print(args: core::fmt::Arguments) {
+    assert!(try_print(args));
 }
 
 #[must_use]

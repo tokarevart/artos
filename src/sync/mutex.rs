@@ -8,38 +8,7 @@ use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering;
 
 #[derive(Debug)]
-pub struct LazyMutex<T, F: Fn()> {
-    mutex: Mutex<T>,
-    on_first_lock: F,
-}
-
-impl<T, F: Fn()> LazyMutex<T, F> {
-    pub const fn new(t: T, f: F) -> Self {
-        Self {
-            mutex: Mutex::new(t),
-            on_first_lock: f,
-        }
-    }
-
-    /// Non-blocking attempt to acquire the lock.
-    /// Returns `Some(MutexGuard)` on success, `None` on failure.
-    #[inline]
-    pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
-        static INITED: AtomicBool = AtomicBool::new(false);
-
-        self.mutex.try_lock().inspect(|_| {
-            if INITED
-                .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-                .is_ok()
-            {
-                (self.on_first_lock)();
-            }
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct MutexOnLock<T, F: Fn(&T) -> bool> {
+pub struct MutexOnLock<T, F = fn(&T) -> bool> {
     mutex: Mutex<T>,
     on_lock: F,
 }
