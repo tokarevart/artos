@@ -15,17 +15,27 @@ pub enum QemuExitCode {
 
 pub fn exit_qemu(exit_code: QemuExitCode) {
     let port = 0xf4;
-    unsafe {
-        outl(port, exit_code as u32);
+    unsafe { outl(port, exit_code as u32) };
+}
+
+pub trait Testable {
+    fn run(&self) -> ();
+}
+
+impl<T: Fn()> Testable for T {
+    fn run(&self) {
+        com1_print!("{}...\t", core::any::type_name::<T>());
+        self();
+        com1_println!("[ok]");
     }
 }
 
 #[cfg(test)]
-pub fn test_runner(tests: &[&dyn Fn()]) {
+pub fn test_runner(tests: &[&dyn Testable]) {
     com1_println!("Running {} tests", tests.len());
 
     for test in tests {
-        test();
+        test.run();
     }
 
     exit_qemu(QemuExitCode::Success);
@@ -42,7 +52,13 @@ use crate::io::outl;
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     _ = com1_try_println!("{info}");
-    loop {}
+
+    #[cfg(test)]
+    exit_qemu(QemuExitCode::Failure);
+
+    loop {
+        arch::halt();
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -67,7 +83,5 @@ fn main() {
 
 #[test_case]
 fn trivial_assertion() {
-    com1_print!("trivial assertion... ");
-    assert_eq!(1, 1);
-    com1_println!("[ok]");
+    assert_eq!(0, 1);
 }
