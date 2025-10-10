@@ -3,14 +3,14 @@
 version = 4
 
 [[package]]
-name = "artos"
-version = "0.0.0"
-dependencies = [
- "bootloader",
-]
-
-[[package]]
 name = "bootloader"
 version = "0.9.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7bdfddac270bbdd45903296bc1caf29a7fdce6b326aaf0bbab7f04c5f98b7447"
+
+[[package]]
+name = "oyteros"
+version = "0.0.0"
+dependencies = [
+ "bootloader",
+]

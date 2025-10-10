@@ -1,10 +1,10 @@
 [package]
-name = "artos"
+name = "oyteros"
 version = "0.0.0"
 edition = "2024"
 
 [[bin]]
-name = "artos"
+name = "oyteros"
 test = true
 bench = false
 
